@@ -22,7 +22,7 @@ app.post('/api/replay/sessions/:id/run', async request => { const session = repl
 app.post('/api/sandbox/orders', async request => engine.submitOrder(request.body as { strategyId: string; symbol: string; side: 'buy' | 'sell'; orderType: 'limit' | 'market'; price?: number; quantity: number }));
 app.post('/api/sandbox/cancel', async request => { const body = request.body as { strategyId: string; orderId: string }; return { cancelled: engine.cancel(body.strategyId, body.orderId) }; });
 app.get('/api/sandbox/strategies/:strategyId/performance', async request => engine.performance((request.params as { strategyId: string }).strategyId));
-app.get('/api/sandbox/strategies/:strategyId/events', async request => { const strategyId = (request.params as { strategyId: string }).strategyId; return { orders: engine.anomalies.filter(item => item.detail && (item.detail as { strategyId?: string }).strategyId === strategyId), fills: engine.fills }; });
+app.get('/api/sandbox/strategies/:strategyId/events', async request => { const strategyId = (request.params as { strategyId: string }).strategyId; return { orders: engine.anomalies.filter(item => item.detail && (item.detail as { strategyId?: string }).strategyId === strategyId), fills: engine.fills.filter(fill => fill.strategyId === strategyId) }; });
 app.get('/api/anomalies', async () => engine.anomalies);
 app.get('/api/metrics', async request => { const { symbol = 'ALPHA' } = request.query as { symbol?: string }; return { analytics: engine.analytics(symbol), eventCount: engine.events.length, fillCount: engine.fills.length, anomalyCount: engine.anomalies.length, bookStats: engine.book(symbol).getStats() }; });
 
