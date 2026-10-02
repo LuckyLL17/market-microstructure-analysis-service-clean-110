@@ -10,7 +10,7 @@ export class OrderBook {
 
   constructor(public readonly symbol: string) {}
 
-  apply(event: MarketEvent): void {
+  apply(event: MarketEvent): Fill[] {
     this.lastTimestamp = event.timestamp;
     this.lastSequence = Math.max(this.lastSequence, event.sequence);
     if (event.type === 'snapshot') {
@@ -18,13 +18,14 @@ export class OrderBook {
       for (const level of event.bids ?? []) this.seedLevel('buy', level, event.sequence);
       for (const level of event.asks ?? []) this.seedLevel('sell', level, event.sequence);
     } else if (event.type === 'new_order' && event.orderId && event.side && event.price && event.quantity) {
-      this.execute({ id: event.orderId, side: event.side, price: event.price, quantity: event.quantity, remaining: event.quantity, sequence: event.sequence, type: 'limit' }, event.timestamp);
+      return this.execute({ id: event.orderId, side: event.side, price: event.price, quantity: event.quantity, remaining: event.quantity, sequence: event.sequence, type: 'limit' }, event.timestamp);
     } else if (event.type === 'cancel_order' && event.orderId) {
       this.cancel(event.orderId);
     } else if (event.type === 'trade' && event.price && event.quantity) {
       this.consume(event.aggressorSide ?? 'buy', event.quantity);
       this.tradeCount += 1; this.tradedQuantity += event.quantity;
     }
+    return [];
   }
 
   add(order: BookOrder): void {
@@ -56,6 +57,7 @@ export class OrderBook {
         const quantity = Math.min(remaining, resting.remaining);
         resting.remaining -= quantity; remaining -= quantity;
         fills.push({ orderId: order.id, symbol: this.symbol, side: order.side, price, quantity, timestamp, liquidity: 'taker', fee: +(price * quantity * 0.00025).toFixed(4), strategyId: order.owner });
+        if (resting.owner) fills.push({ orderId: resting.id, symbol: this.symbol, side: resting.side, price, quantity, timestamp, liquidity: 'maker', fee: +(price * quantity * 0.00025).toFixed(4), strategyId: resting.owner });
         if (resting.remaining <= 0) queue.shift();
       }
       if (!queue.length) opposite.delete(price);
